@@ -1,16 +1,16 @@
---- orig/shell.c	2018-12-19 15:21:18.344932246 -0800
-+++ shell.c	2018-12-19 15:24:25.751492011 -0800
+--- orig/shell.c	2018-04-25 14:33:53.694495979 -0700
++++ shell.c	2019-03-19 17:52:27.233068173 -0700
 @@ -87,6 +87,12 @@
  #endif
  #include <ctype.h>
  #include <stdarg.h>
 +// Begin Android Add
 +#ifndef NO_ANDROID_FUNCS
-+#include "IcuUtils.h"
++#include <aicu/AIcu.h>
 +#include <sqlite3_android.h>
 +#endif
 +// End Android Add
- 
+
  #if !defined(_WIN32) && !defined(WIN32)
  # include <signal.h>
 @@ -10389,6 +10395,23 @@
@@ -20,7 +20,7 @@
 +
 +    // Begin Android Add
 +    #ifndef NO_ANDROID_FUNCS
-+        InitializeIcuOrDie();
++        AIcu_initializeIcuOrDie();
 +        int err = register_localized_collators(p->db, "en_US", 0);
 +        if (err != SQLITE_OK) {
 +          fprintf(stderr, "register_localized_collators() failed\n");
@@ -37,12 +37,12 @@
      if( p->openMode==SHELL_OPEN_ZIPFILE ){
        char *zSql = sqlite3_mprintf(
           "CREATE VIRTUAL TABLE zip USING zipfile(%Q);", p->zDbFilename);
---- orig/sqlite3.c	2018-12-19 15:21:25.032880851 -0800
-+++ sqlite3.c	2018-12-19 15:24:25.751492011 -0800
+--- orig/sqlite3.c	2019-03-19 17:52:27.229068196 -0700
++++ sqlite3.c	2019-03-20 13:40:08.375193226 -0700
 @@ -30672,6 +30672,10 @@
  # include <sys/mount.h>
  #endif
- 
+
 +#if defined(__BIONIC__)
 +# include <android/fdsan.h>
 +#endif
@@ -85,15 +85,15 @@
 +    return unixLogError(SQLITE_IOERR_FSTAT, "fstat", ((unixFile*)id)->zPath);
    }
    *pSize = buf.st_size;
- 
+
 @@ -34464,7 +34480,7 @@
      struct stat buf;              /* Used to hold return values of fstat() */
-    
+
      if( osFstat(pFile->h, &buf) ){
 -      return SQLITE_IOERR_FSTAT;
 +      return unixLogError(SQLITE_IOERR_FSTAT, "fstat", pFile->zPath);
      }
- 
+
      nSize = ((nByte+pFile->szChunk-1) / pFile->szChunk) * pFile->szChunk;
 @@ -35139,7 +35155,7 @@
      ** with the same permissions.
@@ -103,8 +103,19 @@
 +      rc = unixLogError(SQLITE_IOERR_FSTAT, "fstat", pDbFd->zPath);
        goto shm_open_err;
      }
- 
-@@ -118054,7 +118070,7 @@
+
+@@ -38434,6 +38450,10 @@
+     UNIXVFS("unix",          autolockIoFinder ),
+ #elif OS_VXWORKS
+     UNIXVFS("unix",          vxworksIoFinder ),
++#elif __Fuchsia__
++    /* None of the system calls for other exclusion methods are currently
++    ** implemented on Fuchsia, so use simple dot-file locking for now. */
++    UNIXVFS("unix",          dotlockIoFinder ),
+ #else
+     UNIXVFS("unix",          posixIoFinder ),
+ #endif
+@@ -118054,7 +118074,7 @@
    }
    if( pDb->pSchema->file_format>SQLITE_MAX_FILE_FORMAT ){
      sqlite3SetString(pzErrMsg, db, "unsupported file format");
@@ -112,11 +123,11 @@
 +    rc = SQLITE_CORRUPT_BKPT; // Android Change from "rc = SQLITE_ERROR;";
      goto initone_error_out;
    }
- 
-@@ -152769,13 +152785,25 @@
+
+@@ -152769,13 +152789,25 @@
    ** module with sqlite.
    */
-   if( SQLITE_OK==rc 
+   if( SQLITE_OK==rc
 +#ifndef ANDROID    /* fts3_tokenizer disabled for security reasons */
     && SQLITE_OK==(rc = sqlite3Fts3InitHashTable(db, pHash, "fts3_tokenizer"))
 +#endif
