@@ -43,10 +43,6 @@ cc_defaults {
         "-DSQLITE_LIKE_DOESNT_MATCH_BLOBS",
         "-Wno-unused-parameter",
         "-Werror",
-
-        // Turn off the new pass manager due to miscompile.
-        // http://b/131854833
-        "-fno-experimental-new-pass-manager",
     ],
 
     target: {
