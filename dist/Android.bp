@@ -41,6 +41,7 @@ cc_defaults {
         "-DSQLITE_DEFAULT_MEMSTATUS=0",
         "-DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1",
         "-DSQLITE_LIKE_DOESNT_MATCH_BLOBS",
+        "-DSQLITE_PRINTF_PRECISION_LIMIT=100000000",
         "-Wno-unused-parameter",
         "-Werror",
     ],
