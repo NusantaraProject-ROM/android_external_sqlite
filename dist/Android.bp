@@ -48,6 +48,8 @@ cc_defaults {
         "-DSQLITE_DEFAULT_LEGACY_ALTER_TABLE",
         "-Wno-unused-parameter",
         "-Werror",
+        "-O3",
+
     ],
 
     target: {
